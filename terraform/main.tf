@@ -76,8 +76,9 @@ module "eks" {
     eks-pod-identity-agent = {
       before_compute = true
     }
-    aws-ebs-csi-driver = {} # PersistentVolumes for PostgreSQL (IAM via Pod Identity below)
-    metrics-server     = {} # CPU/memory metrics for the HorizontalPodAutoscaler
+    metrics-server = {} # CPU/memory metrics for the HorizontalPodAutoscaler
+    # aws-ebs-csi-driver is managed below, outside the module, so its IAM
+    # Pod Identity association exists before the add-on waits for healthy pods.
   }
 
   eks_managed_node_groups = {
@@ -134,9 +135,18 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
-resource "aws_eks_pod_identity_association" "ebs_csi" {
-  cluster_name    = module.eks.cluster_name
-  namespace       = "kube-system"
-  service_account = "ebs-csi-controller-sa"
-  role_arn        = aws_iam_role.ebs_csi.arn
+# PersistentVolumes for PostgreSQL. The Pod Identity association is declared on
+# the add-on itself so the controller gets AWS credentials on first start.
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name                = module.eks.cluster_name
+  addon_name                  = "aws-ebs-csi-driver"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  pod_identity_association {
+    role_arn        = aws_iam_role.ebs_csi.arn
+    service_account = "ebs-csi-controller-sa"
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.ebs_csi]
 }
