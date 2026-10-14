@@ -1,5 +1,7 @@
 # MediSlot — Clinic Appointment Booking
 
+Link of live demo - https://drive.google.com/file/d/1_QKKB83-ZRODyleFthvEAyzTtqj5CpBE/view?usp=sharing
+
 MediSlot is a small clinic scheduling app. Front-desk staff manage the clinic's doctors, book patient
 appointments, and move each visit through its lifecycle
 (**Scheduled → Checked in → Completed**, or **Cancelled**). The backend refuses double-bookings: a
