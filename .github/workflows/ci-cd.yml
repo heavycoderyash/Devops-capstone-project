@@ -1,0 +1,234 @@
+name: MediSlot CI/CD
+
+# test -> build + Trivy scan -> push to GHCR (tag = commit SHA) -> helm deploy to EKS
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ---------------------------------------------------------------- quality gate 1
+  backend-test:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Real PostgreSQL to prove the Alembic migrations apply and roll back cleanly.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: medislot
+          POSTGRES_USER: medislot
+          POSTGRES_PASSWORD: medislot
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U medislot"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest (SQLite test database)
+        run: pytest -v --junitxml=pytest-report.xml
+      - name: Check migrations against PostgreSQL (upgrade -> downgrade -> upgrade -> drift check)
+        env:
+          DATABASE_URL: postgresql+psycopg://medislot:medislot@localhost:5432/medislot
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic check   # fails if models.py changed without a new migration
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pytest-report
+          path: backend/pytest-report.xml
+
+  frontend-build:
+    name: Frontend tests + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  iac-lint:
+    name: Helm lint + Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.3.0
+      - name: Helm lint (default, dev and prod values)
+        run: |
+          helm lint helm/medislot --set postgres.password=ci
+          helm lint helm/medislot -f helm/medislot/values-dev.yaml --set postgres.password=ci
+          helm template medislot helm/medislot -f helm/medislot/values-prod.yaml \
+            --set postgres.password=ci --api-versions monitoring.coreos.com/v1/ServiceMonitor > /dev/null
+      - uses: hashicorp/setup-terraform@v4
+      - name: Terraform fmt + validate
+        working-directory: terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+  # ---------------------------------------------------------------- build, scan, push
+  build-scan-push:
+    name: Build + scan ${{ matrix.component }}
+    needs: [backend-test, frontend-build, iac-lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write          # push to GHCR
+      security-events: write   # upload Trivy SARIF to the Security tab
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compute image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/medislot-${{ matrix.component }}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image (tag = commit SHA)
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.component }}
+          load: true          # keep it local so Trivy scans it before anything is pushed
+          push: false
+          tags: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+      # trivy-action is pinned to the v0.35.0 commit SHA. Mutable tags of this action
+      # were hijacked in March 2026 (CVE-2026-33634); never reference it by tag.
+      - name: Trivy scan (SARIF report)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          version: v0.69.3
+          image-ref: ${{ env.IMAGE }}
+          format: sarif
+          output: trivy-${{ matrix.component }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && github.event_name == 'push'
+        with:
+          sarif_file: trivy-${{ matrix.component }}.sarif
+          category: trivy-${{ matrix.component }}
+
+      - name: Trivy gate - fail on fixable HIGH/CRITICAL CVEs
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          version: v0.69.3
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push "$IMAGE"
+          echo "### Pushed \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------- deploy
+  # Runs only once the AWS side exists: set repository *variables*
+  #   EKS_CLUSTER_NAME, AWS_REGION, AWS_DEPLOY_ROLE_ARN (from `terraform output`)
+  # and repository *secret* POSTGRES_PASSWORD.
+  deploy:
+    name: Deploy to EKS (Helm)
+    needs: build-scan-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.EKS_CLUSTER_NAME != ''
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write   # OIDC -> short-lived AWS credentials, no access keys stored in GitHub
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+      - name: Configure kubectl
+        run: aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION || 'ap-south-1' }}"
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.3.0
+
+      - name: helm upgrade --install
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          helm upgrade --install medislot ./helm/medislot \
+            --namespace medislot --create-namespace \
+            -f helm/medislot/values-prod.yaml \
+            --set backend.image.repository="${REGISTRY}/${OWNER}/medislot-backend" \
+            --set frontend.image.repository="${REGISTRY}/${OWNER}/medislot-frontend" \
+            --set backend.image.tag="${GITHUB_SHA}" \
+            --set frontend.image.tag="${GITHUB_SHA}" \
+            --set postgres.password="${POSTGRES_PASSWORD}" \
+            --rollback-on-failure --timeout 10m
+
+      - name: Smoke test through the Ingress
+        run: |
+          kubectl get pods,svc,ingress,hpa -n medislot
+          HOST=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          for i in $(seq 1 30); do
+            curl -fsS "http://${HOST}/api/doctors" > /dev/null && break
+            sleep 10
+          done
+          curl -fsS "http://${HOST}/api/appointments/stats"
+          echo "### Deployed \`${GITHUB_SHA::7}\` -> http://${HOST}" >> "$GITHUB_STEP_SUMMARY"
