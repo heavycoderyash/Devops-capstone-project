@@ -1,6 +1,8 @@
 # Trivy security scan
 
-Screenshot: [`screenshots/m6-trivy-output.png`](screenshots/m6-trivy-output.png)
+Screenshot from the pipeline run:
+
+![Trivy gate step passing in GitHub Actions](screenshots/m6-trivy-output.png)
 
 ## What Trivy scanned
 

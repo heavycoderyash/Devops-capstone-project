@@ -100,6 +100,29 @@ uvicorn app.main:app --reload --port 8000
 cd frontend && npm ci && npm run dev    # http://localhost:5173
 ```
 
+
+### Screenshots
+
+**Stack started with Docker Compose — all three services healthy**
+
+![docker compose build and up, all services healthy](docs/screenshots/m4-compose-up.png)
+
+**Dashboard**
+
+![MediSlot dashboard](docs/screenshots/m1-app-dashboard.png)
+
+**Appointments view with status filters**
+
+![Appointments list](docs/screenshots/m1-app-appointments.png)
+
+**Responsive layout at phone width**
+
+<img src="docs/screenshots/m1-app-mobile.png" alt="MediSlot on a 390px wide screen" width="320">
+
+**Data in the PostgreSQL `appointments` table**
+
+![psql query of the appointments table](docs/screenshots/m1-database-table.png)
+
 ---
 
 ## 2. API
@@ -122,6 +145,17 @@ cd frontend && npm ci && npm run dev    # http://localhost:5173
 Custom business metrics on `/metrics`: `medislot_appointments_booked_total{specialty}`,
 `medislot_appointment_status_changes_total{status}` and `medislot_booking_conflicts_total`.
 
+
+### Screenshots
+
+**Swagger UI at `/docs`**
+
+![FastAPI Swagger UI](docs/screenshots/m1-swagger-docs.png)
+
+**Prometheus metrics at `/metrics`**
+
+![curl of the metrics endpoint](docs/screenshots/m9-metrics-endpoint.png)
+
 ---
 
 ## 3. Tests
@@ -135,6 +169,13 @@ cd frontend && npm test      # 6 unit tests for formatting / lifecycle helpers
 overrides, so tests never touch the real PostgreSQL. CI additionally runs the Alembic migrations up,
 down, and up again against a real PostgreSQL service container, then runs `alembic check` to catch
 model changes that have no migration.
+
+
+### Screenshots
+
+**`pytest -v` — 22 tests passing**
+
+![pytest output, 22 passed](docs/screenshots/m2-pytest.png)
 
 ---
 
@@ -179,6 +220,25 @@ Every running pod therefore traces back to an exact commit:
 The deploy job is skipped until `EKS_CLUSTER_NAME` is set, so the pipeline stays green before the
 infrastructure exists.
 
+
+### Screenshots
+
+**Green pipeline run (tests → build → scan → push → deploy)**
+
+![Successful GitHub Actions run](docs/screenshots/m5-pipeline-green.png)
+
+**Trivy gate passing — see [docs/trivy.md](docs/trivy.md) for what was scanned**
+
+![Trivy gate step](docs/screenshots/m6-trivy-output.png)
+
+**Images in GHCR tagged with the commit SHA**
+
+![GHCR package with SHA tags](docs/screenshots/m5-ghcr-sha-tags.png)
+
+**Commit history**
+
+![git log --oneline](docs/screenshots/m3-commit-history.png)
+
 ---
 
 ## 5. AWS infrastructure (Terraform)
@@ -206,6 +266,29 @@ of this repository (or, where OIDC is blocked, a deploy user limited to `eks:Des
 > **Cost:** EKS control plane + NAT gateway + 2 nodes + the ingress load balancer ≈ US$0.40/hour
 > (billed against Free plan credits, if you have them). Run `terraform destroy` after the
 > evaluation, after first running `helm uninstall` (see section 9).
+
+
+### Screenshots
+
+**`terraform plan`**
+
+![terraform plan output](docs/screenshots/m7-terraform-plan.png)
+
+**VPC in ap-southeast-2**
+
+![medislot-dev-vpc in the AWS console](docs/screenshots/m7-aws-vpc.png)
+
+**Two public and two private subnets**
+
+![VPC subnets in the AWS console](docs/screenshots/m7-aws-subnets.png)
+
+**EKS cluster overview**
+
+![EKS cluster overview](docs/screenshots/m7-aws-eks-overview.png)
+
+**EKS managed node group**
+
+![EKS node group in the AWS console](docs/screenshots/m7-aws-eks.png)
 
 ---
 
@@ -253,6 +336,29 @@ open http://medislot.local
 kind delete cluster --name medislot                  # when done
 ```
 
+
+### Screenshots
+
+**Worker nodes Ready and the PostgreSQL volume bound to EBS gp3**
+
+![kubectl get nodes and pvc](docs/screenshots/m8-eks-nodes.png)
+
+**All pods Running**
+
+![kubectl get pods](docs/screenshots/m8-pods-running.png)
+
+**ClusterIP Services and the Ingress**
+
+![kubectl get svc and ingress](docs/screenshots/m8-services.png)
+
+**Helm release and history**
+
+![helm list and helm history](docs/screenshots/m8-helm-list.png)
+
+**App served through the Ingress load balancer**
+
+![MediSlot via the ingress load balancer](docs/screenshots/m8-app-via-ingress.png)
+
 ---
 
 ## 7. Autoscaling and monitoring
@@ -275,6 +381,21 @@ ratio, p95 latency, live backend pod count, per-endpoint traffic and latency, CP
 reacts to), and appointments booked per specialty. Alert rules for "backend down", "error rate > 5%" and
 "p95 > 1s" ship in [monitoring/prometheus-values.yaml](monitoring/prometheus-values.yaml). See
 [monitoring/README.md](monitoring/README.md).
+
+
+### Screenshots
+
+**HPA scaling the backend out under load**
+
+![kubectl get hpa showing scale-out](docs/screenshots/m8-hpa-scaling.png)
+
+**Prometheus scraping every backend pod (all UP)**
+
+![Prometheus targets page](docs/screenshots/m9-prometheus-targets-up.png)
+
+**Grafana dashboard with live traffic**
+
+![MediSlot Grafana dashboard](docs/screenshots/m9-grafana-dashboard.png)
 
 ---
 
@@ -313,5 +434,5 @@ created by Kubernetes, not Terraform, so they would otherwise block the VPC dele
 - The CI token has least privilege: `packages: write` only in the build job, `id-token: write` only in
   the deploy job.
 
-See [docs/SUBMISSION.md](docs/SUBMISSION.md) for what the Trivy scan covered and what its result means.
+See [docs/trivy.md](docs/trivy.md) for what the Trivy scan covered and what its result means.
 Screenshots of every stage are in [docs/screenshots/](docs/screenshots/).
