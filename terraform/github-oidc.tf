@@ -1,17 +1,18 @@
 # ---------------------------------------------------------------------------
 # Lets GitHub Actions deploy with short-lived credentials (OIDC) instead of
 # long-lived AWS access keys stored as repository secrets.
-# Enabled when var.github_repository is set, e.g. "heavycoderyash/Devops-capstone-project".
+# Enabled when var.github_repository is set and var.github_oidc_enabled = true.
+# Otherwise github-deploy-user.tf creates an IAM user for the pipeline instead.
 # ---------------------------------------------------------------------------
 resource "aws_iam_openid_connect_provider" "github" {
-  count = var.github_repository == "" ? 0 : 1
+  count = local.github_oidc ? 1 : 0
 
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
 }
 
 data "aws_iam_policy_document" "github_trust" {
-  count = var.github_repository == "" ? 0 : 1
+  count = local.github_oidc ? 1 : 0
 
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -34,7 +35,7 @@ data "aws_iam_policy_document" "github_trust" {
 }
 
 resource "aws_iam_role" "github_actions" {
-  count = var.github_repository == "" ? 0 : 1
+  count = local.github_oidc ? 1 : 0
 
   name               = "${local.name}-github-deploy"
   assume_role_policy = data.aws_iam_policy_document.github_trust[0].json
@@ -43,7 +44,7 @@ resource "aws_iam_role" "github_actions" {
 # `aws eks update-kubeconfig` only needs DescribeCluster; Kubernetes
 # permissions come from the EKS access entry in main.tf.
 resource "aws_iam_role_policy" "github_actions_eks" {
-  count = var.github_repository == "" ? 0 : 1
+  count = local.github_oidc ? 1 : 0
 
   name = "eks-describe"
   role = aws_iam_role.github_actions[0].id

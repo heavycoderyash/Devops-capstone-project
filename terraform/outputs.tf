@@ -32,6 +32,11 @@ output "configure_kubectl" {
 }
 
 output "github_actions_role_arn" {
-  description = "Store as the AWS_DEPLOY_ROLE_ARN repository variable in GitHub"
-  value       = var.github_repository == "" ? null : aws_iam_role.github_actions[0].arn
+  description = "OIDC mode: store as the AWS_DEPLOY_ROLE_ARN repository variable in GitHub"
+  value       = local.github_oidc ? aws_iam_role.github_actions[0].arn : null
+}
+
+output "github_deploy_user" {
+  description = "Access-key mode: create a key for this user and store it as GitHub secrets"
+  value       = local.github_user ? aws_iam_user.github_actions[0].name : null
 }

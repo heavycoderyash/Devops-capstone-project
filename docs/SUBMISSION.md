@@ -52,14 +52,15 @@ terraform init
 terraform plan -out tfplan                        # 📸 m7-terraform-plan.png
 terraform apply tfplan
 $(terraform output -raw configure_kubectl)
-terraform output                                  # copy cluster_name + github_actions_role_arn
+terraform output                                  # copy cluster_name + github_deploy_user
+aws iam create-access-key --user-name "$(terraform output -raw github_deploy_user)"   # copy AccessKeyId + SecretAccessKey
 ```
 
 AWS Console (region **ap-southeast-2**): VPC → Your VPCs → `medislot-dev-vpc` 📸 `m7-aws-vpc.png`;
 EKS → Clusters → `medislot-dev` → Compute tab 📸 `m7-aws-eks.png`.
 
-Add GitHub repo **variables** `EKS_CLUSTER_NAME`, `AWS_REGION`, `AWS_DEPLOY_ROLE_ARN` and **secret**
-`POSTGRES_PASSWORD` (Settings → Secrets and variables → Actions).
+Add GitHub repo **variables** `EKS_CLUSTER_NAME`, `AWS_REGION` and **secrets** `POSTGRES_PASSWORD`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (Settings → Secrets and variables → Actions).
 
 ## Step 4 — Kubernetes (M8, M9)
 

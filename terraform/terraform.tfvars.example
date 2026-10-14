@@ -13,3 +13,7 @@ node_max_size       = 4
 
 # Enables the keyless GitHub Actions deploy role (OIDC). Leave "" to skip.
 github_repository = "heavycoderyash/Devops-capstone-project"
+
+# true = keyless OIDC login (preferred). false = IAM user + access key in GitHub secrets,
+# for accounts whose AWS Organization blocks creating OIDC providers.
+github_oidc_enabled = false

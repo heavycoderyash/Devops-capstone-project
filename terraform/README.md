@@ -12,7 +12,7 @@ AWS (ap-southeast-2)
            ├── managed node group: 2× c7i-flex.large (min 2, max 4), AL2023
            ├── add-ons: vpc-cni, coredns, kube-proxy, eks-pod-identity-agent,
            │            aws-ebs-csi-driver (IAM role via Pod Identity), metrics-server
-           └── access entry for the GitHub Actions OIDC role (if github_repository is set)
+           └── access entry for the GitHub Actions identity (OIDC role or deploy user)
 ```
 
 | File | Contents |
@@ -21,6 +21,7 @@ AWS (ap-southeast-2)
 | `variables.tf` | Inputs with defaults (region, sizes, Kubernetes version, GitHub repo) |
 | `main.tf` | VPC module, EKS module, EBS CSI IAM role + Pod Identity association |
 | `github-oidc.tf` | OIDC provider + IAM role GitHub Actions assumes to deploy (no stored AWS keys) |
+| `github-deploy-user.tf` | Fallback when an SCP blocks OIDC: IAM user limited to `eks:DescribeCluster` |
 | `outputs.tf` | Cluster name/endpoint, VPC/subnet IDs, kubeconfig command, deploy role ARN |
 | `terraform.tfvars.example` | Copy to `terraform.tfvars` (git-ignored) |
 

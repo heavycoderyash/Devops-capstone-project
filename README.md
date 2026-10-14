@@ -147,7 +147,7 @@ model changes that have no migration.
 2. **build-scan-push** (matrix: backend, frontend) builds each image tagged with the **full commit
    SHA**, scans it with **Trivy**, uploads the SARIF report to the GitHub *Security* tab, and **fails on
    any fixable HIGH/CRITICAL vulnerability**. Images are pushed to GHCR only on `main`, never from PRs.
-3. **deploy** assumes an AWS role through **OIDC** (no AWS keys stored in GitHub), runs
+3. **deploy** authenticates to AWS (OIDC role, or a least-privilege deploy user where OIDC is blocked), runs
    `helm upgrade --install --rollback-on-failure`, then smoke-tests the API through the Ingress.
 
 Every running pod therefore traces back to an exact commit:
@@ -163,9 +163,18 @@ Every running pod therefore traces back to an exact commit:
 |-------|------|-------|
 | Settings → Secrets and variables → Actions → **Variables** | `EKS_CLUSTER_NAME` | `terraform output -raw cluster_name` |
 | | `AWS_REGION` | `ap-southeast-2` |
-| | `AWS_DEPLOY_ROLE_ARN` | `terraform output -raw github_actions_role_arn` |
 | … → **Secrets** | `POSTGRES_PASSWORD` | a strong random string (`openssl rand -hex 16`) |
+| | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | key of the deploy user (see below) |
 | Your profile → Packages → `medislot-backend` / `medislot-frontend` → Package settings | Visibility | **Public** (so EKS can pull without a pull secret) |
+
+**AWS login for the pipeline.** Two modes, chosen with `github_oidc_enabled` in `terraform.tfvars`:
+
+- `true` (preferred): GitHub assumes an IAM role through OIDC, and no AWS keys are stored anywhere. Set
+  the `AWS_DEPLOY_ROLE_ARN` variable from `terraform output -raw github_actions_role_arn`.
+- `false` (this project's account): the AWS Organization's SCP denies `iam:CreateOpenIDConnectProvider`,
+  so Terraform creates an IAM user that can only call `eks:DescribeCluster`. Create its key with
+  `aws iam create-access-key --user-name $(terraform output -raw github_deploy_user)` and store it as the
+  two secrets above. The key never enters Git or Terraform state.
 
 The deploy job is skipped until `EKS_CLUSTER_NAME` is set, so the pipeline stays green before the
 infrastructure exists.
@@ -189,7 +198,7 @@ load balancers), two private subnets for worker nodes, and one NAT gateway. It a
 cluster with a managed node group (2× `c7i-flex.large`, autoscaling 2–4) and the add-ons `vpc-cni`, `coredns`,
 `kube-proxy`, `eks-pod-identity-agent`, `aws-ebs-csi-driver` (IAM through Pod Identity) and
 `metrics-server`. Finally, it creates an IAM role GitHub Actions can assume only from the `main` branch
-of this repository. See [terraform/README.md](terraform/README.md).
+of this repository (or, where OIDC is blocked, a deploy user limited to `eks:DescribeCluster`). See [terraform/README.md](terraform/README.md).
 
 > **Cost:** EKS control plane + NAT gateway + 2 nodes ≈ US$0.25/hour. Run `terraform destroy` after the
 > evaluation, after first running `helm uninstall` (see section 9).
@@ -291,8 +300,8 @@ created by Kubernetes, not Terraform, so they would otherwise block the VPC dele
 
 ## Security practices
 
-- No credentials in Git: the DB password is passed at deploy time (`--set` / GitHub secret), AWS access
-  uses OIDC, and `.env`, `terraform.tfvars` and state files are git-ignored.
+- No credentials in Git: the DB password is passed at deploy time (`--set` / GitHub secret), CI's AWS
+  access is OIDC or a deploy user that can only describe the cluster, and `.env`, `terraform.tfvars` and state files are git-ignored.
 - Containers run as non-root (backend uid 10001, Nginx uid 101, Postgres uid 70) with all Linux
   capabilities dropped.
 - Images are scanned before they are pushed. `pip` is removed from the runtime image, which removes its

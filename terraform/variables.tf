@@ -65,3 +65,13 @@ variable "github_repository" {
   type        = string
   default     = ""
 }
+
+variable "github_oidc_enabled" {
+  description = <<-EOT
+    true  = GitHub Actions assumes an IAM role via OIDC (no stored keys; preferred).
+    false = a dedicated IAM user whose access key is stored as GitHub secrets. Use this when
+            an AWS Organization SCP denies iam:CreateOpenIDConnectProvider.
+  EOT
+  type        = bool
+  default     = true
+}

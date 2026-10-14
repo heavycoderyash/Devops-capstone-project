@@ -181,8 +181,8 @@ jobs:
 
   # ---------------------------------------------------------------- deploy
   # Runs only once the AWS side exists: set repository *variables*
-  #   EKS_CLUSTER_NAME, AWS_REGION, AWS_DEPLOY_ROLE_ARN (from `terraform output`)
-  # and repository *secret* POSTGRES_PASSWORD.
+  #   EKS_CLUSTER_NAME, AWS_REGION and, in OIDC mode, AWS_DEPLOY_ROLE_ARN;
+  # *secrets* POSTGRES_PASSWORD and, in access-key mode, AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY.
   deploy:
     name: Deploy to EKS (Helm)
     needs: build-scan-push
@@ -191,13 +191,16 @@ jobs:
     environment: production
     permissions:
       contents: read
-      id-token: write   # OIDC -> short-lived AWS credentials, no access keys stored in GitHub
+      id-token: write   # OIDC mode: short-lived AWS credentials, no access keys stored in GitHub
     steps:
       - uses: actions/checkout@v7
 
+      # OIDC mode when AWS_DEPLOY_ROLE_ARN is set; otherwise the deploy user's access key.
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ vars.AWS_DEPLOY_ROLE_ARN == '' && secrets.AWS_ACCESS_KEY_ID || '' }}
+          aws-secret-access-key: ${{ vars.AWS_DEPLOY_ROLE_ARN == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
           aws-region: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
 
       - name: Configure kubectl

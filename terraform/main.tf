@@ -67,6 +67,10 @@ module "eks" {
   # Whoever runs `terraform apply` becomes cluster admin.
   enable_cluster_creator_admin_permissions = true
 
+  # IAM for add-ons uses EKS Pod Identity, so the IRSA OIDC provider is not needed
+  # (and some AWS Organizations block iam:CreateOpenIDConnectProvider).
+  enable_irsa = false
+
   addons = {
     coredns    = {}
     kube-proxy = {}
@@ -99,7 +103,7 @@ module "eks" {
 
   access_entries = var.github_repository == "" ? {} : {
     github_actions = {
-      principal_arn = aws_iam_role.github_actions[0].arn
+      principal_arn = local.github_deploy_principal_arn
       policy_associations = {
         admin = {
           # Helm needs to manage Deployments, Secrets, Jobs, HPAs, Ingresses and
