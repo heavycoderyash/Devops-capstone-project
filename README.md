@@ -58,7 +58,7 @@ helm/medislot/      Helm chart (Deployments, Services, StatefulSet, Ingress, HPA
 monitoring/         kube-prometheus-stack values (Prometheus + Grafana)
 scripts/            Cluster bootstrap, local kind rehearsal, load testing
 troubleshooting/    Deliberately broken manifests + walkthrough
-docs/               Submission checklist, demo script, original course guide
+docs/               Trivy scan write-up, screenshots, original course guide
 ```
 
 ---
@@ -313,5 +313,5 @@ created by Kubernetes, not Terraform, so they would otherwise block the VPC dele
 - The CI token has least privilege: `packages: write` only in the build job, `id-token: write` only in
   the deploy job.
 
-See [docs/SUBMISSION.md](docs/SUBMISSION.md) for the grading checklist, screenshot commands and the
-demo script.
+See [docs/SUBMISSION.md](docs/SUBMISSION.md) for what the Trivy scan covered and what its result means.
+Screenshots of every stage are in [docs/screenshots/](docs/screenshots/).
