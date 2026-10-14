@@ -9,7 +9,7 @@ AWS (ap-southeast-2)
       ├── public subnets  10.20.101.0/24, 10.20.102.0/24   ← NLB for ingress-nginx, NAT gateway
       ├── private subnets 10.20.1.0/24,   10.20.2.0/24     ← worker nodes
       └── EKS cluster medislot-dev (Kubernetes 1.36)
-           ├── managed node group: 2× t3.medium (min 2, max 4), AL2023
+           ├── managed node group: 2× c7i-flex.large (min 2, max 4), AL2023
            ├── add-ons: vpc-cni, coredns, kube-proxy, eks-pod-identity-agent,
            │            aws-ebs-csi-driver (IAM role via Pod Identity), metrics-server
            └── access entry for the GitHub Actions OIDC role (if github_repository is set)
@@ -51,5 +51,5 @@ kubectl delete pvc --all -n medislot
 terraform destroy
 ```
 
-> Cost: EKS control plane (~$0.10/h) + NAT gateway (~$0.056/h + data) + 2× t3.medium (~$0.09/h) in ap-southeast-2.
+> Cost: EKS control plane (~$0.10/h) + NAT gateway (~$0.056/h + data) + 2× c7i-flex.large (~$0.09/h) in ap-southeast-2.
 > Destroy as soon as you have your screenshots.

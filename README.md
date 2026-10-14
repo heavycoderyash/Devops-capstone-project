@@ -186,7 +186,7 @@ $(terraform output -raw configure_kubectl)       # aws eks update-kubeconfig ...
 
 This creates a VPC (`10.20.0.0/16`) across two AZs, with two public subnets (tagged for internet-facing
 load balancers), two private subnets for worker nodes, and one NAT gateway. It also creates an EKS 1.36
-cluster with a managed node group (2× `t3.medium`, autoscaling 2–4) and the add-ons `vpc-cni`, `coredns`,
+cluster with a managed node group (2× `c7i-flex.large`, autoscaling 2–4) and the add-ons `vpc-cni`, `coredns`,
 `kube-proxy`, `eks-pod-identity-agent`, `aws-ebs-csi-driver` (IAM through Pod Identity) and
 `metrics-server`. Finally, it creates an IAM role GitHub Actions can assume only from the `main` branch
 of this repository. See [terraform/README.md](terraform/README.md).
