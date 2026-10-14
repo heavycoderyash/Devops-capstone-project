@@ -1,0 +1,55 @@
+# kube-prometheus-stack values - Prometheus side.
+# Installed by scripts/bootstrap-cluster.sh together with grafana-values.yaml.
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors from every namespace, not only ones labelled
+    # with this Helm release - so the medislot chart's ServiceMonitor is scraped.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 3d
+    resources:
+      requests: {cpu: 100m, memory: 512Mi}
+      limits: {memory: 1Gi}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+
+# Application alerts, evaluated by Prometheus and visible on its Alerts page.
+additionalPrometheusRulesMap:
+  medislot:
+    groups:
+      - name: medislot.rules
+        rules:
+          - alert: MediSlotBackendDown
+            expr: absent(up{namespace="medislot", service=~".*backend.*"} == 1)
+            for: 2m
+            labels: {severity: critical}
+            annotations:
+              summary: No MediSlot backend pod is being scraped successfully.
+          - alert: MediSlotHighErrorRate
+            expr: |
+              sum(rate(http_requests_total{namespace="medislot", status="5xx"}[5m]))
+                / clamp_min(sum(rate(http_requests_total{namespace="medislot"}[5m])), 1e-9) > 0.05
+            for: 5m
+            labels: {severity: warning}
+            annotations:
+              summary: More than 5% of MediSlot API requests are failing.
+          - alert: MediSlotSlowRequests
+            expr: |
+              histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="medislot"}[5m]))) > 1
+            for: 10m
+            labels: {severity: warning}
+            annotations:
+              summary: MediSlot p95 latency is above 1 second.
+
+# Small clusters (kind / 2-node EKS): these control-plane components are not scrapeable.
+kubeEtcd: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeProxy: {enabled: false}

@@ -1,0 +1,18 @@
+# kube-prometheus-stack values - Grafana side.
+# The admin password is NOT stored here; bootstrap-cluster.sh passes it with --set.
+
+grafana:
+  enabled: true
+  defaultDashboardsTimezone: browser
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      # Load dashboards shipped by application charts in any namespace
+      # (the medislot chart ships its dashboard as a ConfigMap).
+      searchNamespace: ALL
+  service:
+    type: ClusterIP
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
