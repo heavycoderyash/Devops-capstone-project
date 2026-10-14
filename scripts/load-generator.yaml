@@ -1,0 +1,37 @@
+# In-cluster load generator for the HPA demo (no Ingress or laptop bandwidth needed):
+#   kubectl apply -f scripts/load-generator.yaml
+#   kubectl get hpa -n medislot -w
+#   kubectl delete -f scripts/load-generator.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medislot-load-generator
+  namespace: medislot
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: medislot-load-generator}
+  template:
+    metadata:
+      labels: {app: medislot-load-generator}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: load
+          image: busybox:1.37
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                wget -q -O /dev/null http://medislot-backend:8000/api/appointments
+                wget -q -O /dev/null http://medislot-backend:8000/api/appointments/stats
+              done
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 200m, memory: 32Mi}
