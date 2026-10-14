@@ -1,0 +1,54 @@
+# Full local stack: PostgreSQL + FastAPI + React/Nginx.
+#   docker compose up --build      -> http://localhost:3000
+#   docker compose down -v         -> stop and wipe the database volume
+name: medislot
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: medislot
+      POSTGRES_USER: medislot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medislot}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ keeps data in a versioned subdirectory under /var/lib/postgresql.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medislot -d medislot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    image: medislot-backend:local
+    environment:
+      DATABASE_URL: postgresql+psycopg://medislot:${POSTGRES_PASSWORD:-medislot}@postgres:5432/medislot
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    image: medislot-frontend:local
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+
+volumes:
+  postgres-data:
