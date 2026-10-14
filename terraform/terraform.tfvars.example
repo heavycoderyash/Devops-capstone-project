@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and adjust. terraform.tfvars is git-ignored.
+# AWS credentials come from `aws configure` / `aws login` / SSO - never put keys here.
+
+aws_region         = "ap-south-1"
+project            = "medislot"
+environment        = "dev"
+kubernetes_version = "1.36"
+
+node_instance_types = ["t3.medium"]
+node_min_size       = 2
+node_desired_size   = 2
+node_max_size       = 4
+
+# Enables the keyless GitHub Actions deploy role (OIDC). Leave "" to skip.
+github_repository = "heavycoderyash/Devops-capstone-project"
