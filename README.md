@@ -435,4 +435,3 @@ created by Kubernetes, not Terraform, so they would otherwise block the VPC dele
   the deploy job.
 
 See [docs/trivy.md](docs/trivy.md) for what the Trivy scan covered and what its result means.
-Screenshots of every stage are in [docs/screenshots/](docs/screenshots/).
