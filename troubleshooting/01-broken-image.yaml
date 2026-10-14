@@ -1,0 +1,24 @@
+# Scenario 1 - ImagePullBackOff
+# kubectl apply -f troubleshooting/01-broken-image.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medislot-broken-image
+  namespace: medislot
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: medislot-broken-image}
+  template:
+    metadata:
+      labels: {app: medislot-broken-image}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: backend
+          image: ghcr.io/heavycoderyash/medislot-backend:does-not-exist
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}

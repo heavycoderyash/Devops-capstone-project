@@ -1,0 +1,33 @@
+# Scenario 3 - CrashLoopBackOff caused by configuration, not code
+# kubectl apply -f troubleshooting/03-crashloop-bad-database-url.yaml
+# Uses the image already running in the cluster; replace the tag if needed:
+#   kubectl get deploy medislot-backend -n medislot -o jsonpath='{.spec.template.spec.containers[0].image}'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medislot-broken-config
+  namespace: medislot
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: medislot-broken-config}
+  template:
+    metadata:
+      labels: {app: medislot-broken-config}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: backend
+          image: medislot-backend:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RUN_MIGRATIONS
+              value: "true"
+            - name: DATABASE_URL
+              # Wrong host: there is no Service called "postgres" in this namespace.
+              value: postgresql+psycopg://medislot:wrong@postgres:5432/medislot
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}

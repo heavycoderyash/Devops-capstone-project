@@ -1,0 +1,14 @@
+# Scenario 2 - Service with no endpoints
+# kubectl apply -f troubleshooting/02-broken-service.yaml
+# kubectl run curl -n medislot --rm -it --image=curlimages/curl --restart=Never -- curl -m 3 http://medislot-api-broken:8000/health
+apiVersion: v1
+kind: Service
+metadata:
+  name: medislot-api-broken
+  namespace: medislot
+spec:
+  selector:
+    app.kubernetes.io/name: medislot-api        # real Pods are labelled medislot-backend
+  ports:
+    - port: 8000
+      targetPort: 8080                          # backend container listens on 8000
