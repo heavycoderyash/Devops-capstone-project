@@ -1,7 +1,7 @@
 # Copy to terraform.tfvars and adjust. terraform.tfvars is git-ignored.
 # AWS credentials come from `aws configure` / `aws login` / SSO - never put keys here.
 
-aws_region         = "ap-south-1"
+aws_region         = "ap-southeast-2"
 project            = "medislot"
 environment        = "dev"
 kubernetes_version = "1.36"

@@ -55,7 +55,7 @@ $(terraform output -raw configure_kubectl)
 terraform output                                  # copy cluster_name + github_actions_role_arn
 ```
 
-AWS Console (region **ap-south-1**): VPC → Your VPCs → `medislot-dev-vpc` 📸 `m7-aws-vpc.png`;
+AWS Console (region **ap-southeast-2**): VPC → Your VPCs → `medislot-dev-vpc` 📸 `m7-aws-vpc.png`;
 EKS → Clusters → `medislot-dev` → Compute tab 📸 `m7-aws-eks.png`.
 
 Add GitHub repo **variables** `EKS_CLUSTER_NAME`, `AWS_REGION`, `AWS_DEPLOY_ROLE_ARN` and **secret**

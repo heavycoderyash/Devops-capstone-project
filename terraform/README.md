@@ -4,7 +4,7 @@ Provisions everything MediSlot needs in AWS. Kubernetes manages workloads; Terra
 and the cluster underneath them.
 
 ```text
-AWS (ap-south-1)
+AWS (ap-southeast-2)
  └── VPC 10.20.0.0/16 (2 AZs)
       ├── public subnets  10.20.101.0/24, 10.20.102.0/24   ← NLB for ingress-nginx, NAT gateway
       ├── private subnets 10.20.1.0/24,   10.20.2.0/24     ← worker nodes
@@ -51,5 +51,5 @@ kubectl delete pvc --all -n medislot
 terraform destroy
 ```
 
-> Cost: EKS control plane (~$0.10/h) + NAT gateway (~$0.056/h + data) + 2× t3.medium (~$0.09/h) in ap-south-1.
+> Cost: EKS control plane (~$0.10/h) + NAT gateway (~$0.056/h + data) + 2× t3.medium (~$0.09/h) in ap-southeast-2.
 > Destroy as soon as you have your screenshots.

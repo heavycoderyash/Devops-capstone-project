@@ -162,7 +162,7 @@ Every running pod therefore traces back to an exact commit:
 | Where | Name | Value |
 |-------|------|-------|
 | Settings → Secrets and variables → Actions → **Variables** | `EKS_CLUSTER_NAME` | `terraform output -raw cluster_name` |
-| | `AWS_REGION` | `ap-south-1` |
+| | `AWS_REGION` | `ap-southeast-2` |
 | | `AWS_DEPLOY_ROLE_ARN` | `terraform output -raw github_actions_role_arn` |
 | … → **Secrets** | `POSTGRES_PASSWORD` | a strong random string (`openssl rand -hex 16`) |
 | Your profile → Packages → `medislot-backend` / `medislot-frontend` → Package settings | Visibility | **Public** (so EKS can pull without a pull secret) |

@@ -13,7 +13,7 @@ terraform {
   # backend "s3" {
   #   bucket       = "medislot-tfstate-<your-account-id>"
   #   key          = "medislot/terraform.tfstate"
-  #   region       = "ap-south-1"
+  #   region       = "ap-southeast-2"
   #   use_lockfile = true
   # }
 }
