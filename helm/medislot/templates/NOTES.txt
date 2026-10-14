@@ -1,0 +1,20 @@
+MediSlot {{ .Chart.AppVersion }} is deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+  kubectl get pods,svc,ingress,hpa -n {{ .Release.Namespace }}
+{{- if .Values.ingress.enabled }}
+
+Open the app through the Ingress:
+{{- if .Values.ingress.host }}
+  http://{{ .Values.ingress.host }}/   (point {{ .Values.ingress.host }} at the ingress controller address)
+{{- else }}
+  kubectl get ingress {{ include "medislot.fullname" . }} -n {{ .Release.Namespace }}   # use the ADDRESS column
+{{- end }}
+{{- else }}
+
+Port-forward the frontend:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "medislot.frontendService" . }} 3000:80
+{{- end }}
+
+API docs:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "medislot.backendService" . }} 8000:8000
+  then open http://localhost:8000/docs

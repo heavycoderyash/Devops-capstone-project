@@ -1,0 +1,73 @@
+# Default values for the MediSlot chart.
+# Environment-specific overrides live in values-dev.yaml / values-prod.yaml.
+# CI sets backend.image.tag / frontend.image.tag to the Git commit SHA.
+
+imagePullSecrets: []   # e.g. [{name: ghcr-pull}] if the GHCR packages are private
+
+backend:
+  image:
+    repository: ghcr.io/heavycoderyash/medislot-backend
+    tag: ""            # defaults to .Chart.AppVersion; CI passes the commit SHA
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  corsOrigins: ""
+  resources:
+    requests: {cpu: 100m, memory: 192Mi}
+    limits: {cpu: 500m, memory: 384Mi}
+
+frontend:
+  image:
+    repository: ghcr.io/heavycoderyash/medislot-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+
+# Runs `alembic upgrade head` once per install/upgrade as a Helm hook Job,
+# so backend replicas never race each other on schema migrations.
+migrations:
+  enabled: true
+
+postgres:
+  # In-cluster PostgreSQL (StatefulSet + PVC) for the demo. For production,
+  # set enabled=false and point externalHost at Amazon RDS.
+  enabled: true
+  image: postgres:18-alpine
+  database: medislot
+  username: medislot
+  password: ""          # REQUIRED: pass with --set postgres.password=... (never commit it)
+  externalHost: ""
+  port: 5432
+  storage:
+    size: 5Gi
+    storageClassName: ""   # "" = cluster default (gp3 on EKS via k8s/storageclass-gp3.yaml)
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+
+ingress:
+  enabled: false
+  className: nginx
+  host: medislot.local
+  annotations: {}
+  tls: []
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+
+podDisruptionBudget:
+  enabled: true
+
+monitoring:
+  serviceMonitor:
+    enabled: false        # needs the Prometheus Operator CRDs (kube-prometheus-stack)
+    interval: 15s
+    labels:
+      release: kube-prometheus-stack
+  grafanaDashboard:
+    enabled: false        # picked up by the Grafana sidecar (label grafana_dashboard=1)

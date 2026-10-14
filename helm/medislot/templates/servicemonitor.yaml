@@ -1,0 +1,24 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+{{- if not (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor") }}
+{{- fail "monitoring.serviceMonitor.enabled=true but the ServiceMonitor CRD is missing. Install kube-prometheus-stack first (see monitoring/README.md)." }}
+{{- end }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "medislot.backendService" . }}
+  labels:
+    {{- include "medislot.componentLabels" (list . "backend") | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "medislot.selectorLabels" (list . "backend") | nindent 6 }}
+  namespaceSelector:
+    matchNames: [{{ .Release.Namespace }}]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}

@@ -1,0 +1,42 @@
+{{- if .Values.migrations.enabled }}
+# Runs Alembic once per release. post-install: after the database exists on first install.
+# pre-upgrade: the schema is migrated before new backend Pods roll out.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "medislot.fullname" . }}-migrate
+  labels:
+    {{- include "medislot.componentLabels" (list . "migrate") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "medislot.componentLabels" (list . "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "medislot.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "medislot.image" (list . .Values.backend.image) }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command: ["alembic", "upgrade", "head"]
+          securityContext:
+            {{- include "medislot.containerSecurityContext" . | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medislot.secretName" . }}
+                  key: DATABASE_URL
+{{- end }}

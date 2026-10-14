@@ -1,0 +1,26 @@
+{{- if .Values.hpa.enabled }}
+# Requires CPU requests on the Pods (set in values) and a metrics provider (metrics-server).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "medislot.backendService" . }}
+  labels:
+    {{- include "medislot.componentLabels" (list . "backend") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "medislot.backendService" . }}
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120   # shorter than the 300s default so the demo scales back down visibly
+{{- end }}

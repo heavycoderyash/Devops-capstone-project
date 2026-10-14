@@ -1,0 +1,27 @@
+# AWS EKS. Image tags are set by the CI pipeline to the Git commit SHA.
+backend:
+  replicaCount: 2
+  resources:
+    requests: {cpu: 200m, memory: 256Mi}
+    limits: {cpu: "1", memory: 512Mi}
+frontend:
+  replicaCount: 2
+postgres:
+  storage:
+    size: 10Gi
+    storageClassName: gp3
+ingress:
+  enabled: true
+  className: nginx
+  # Leave empty to accept any Host header (use the ELB hostname directly),
+  # or set your own domain, e.g. medislot.example.com.
+  host: ""
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+monitoring:
+  serviceMonitor:
+    enabled: true
+  grafanaDashboard:
+    enabled: true
