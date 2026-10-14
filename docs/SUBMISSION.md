@@ -110,8 +110,8 @@ Follow README section 9, then `terraform destroy` → 📸 `m7-terraform-destroy
 > libraries vendored inside `pip`, not from the application's own code, so I removed `pip` from the final
 > runtime image (it is not needed once dependencies are installed). The scan has been clean since. A clean
 > result means no *known, fixable* HIGH/CRITICAL CVEs at scan time. It is not a guarantee of security,
-> which is why the pipeline also uses non-root containers, least-privilege tokens and OIDC instead of
-> stored keys.
+> which is why the pipeline also uses non-root containers, least-privilege tokens and a deploy identity
+> that can do nothing in AWS except look up the cluster.
 
 ---
 

@@ -39,7 +39,7 @@ Kubernetes deployment on AWS:
 | Tests | pytest (SQLite in-memory test DB), Node test runner |
 | Containers | Multi-stage Dockerfiles, non-root users, Docker Compose |
 | CI/CD | GitHub Actions, Trivy, GitHub Container Registry |
-| Infrastructure | Terraform (AWS VPC + EKS modules), EBS CSI via EKS Pod Identity, GitHub OIDC |
+| Infrastructure | Terraform (AWS VPC + EKS modules), EBS CSI via EKS Pod Identity, CI deploy identity (OIDC role or least-privilege user) |
 | Platform | Kubernetes, Helm 4, ingress-nginx, HPA + metrics-server, PodDisruptionBudgets |
 | Observability | kube-prometheus-stack (Prometheus, Grafana, Alertmanager) |
 
@@ -52,7 +52,7 @@ backend/            FastAPI app (app/), Alembic migrations (alembic/versions/), 
 frontend/           React app (src/), Nginx config template, multi-stage Dockerfile
 docker-compose.yml  Full local stack: postgres + backend + frontend
 .github/workflows/  CI/CD pipeline
-terraform/          AWS VPC + EKS + IAM (EBS CSI, GitHub OIDC deploy role)
+terraform/          AWS VPC + EKS + IAM (EBS CSI role, GitHub Actions deploy identity)
 k8s/                Namespace, gp3 StorageClass, kind cluster config
 helm/medislot/      Helm chart (Deployments, Services, StatefulSet, Ingress, HPA, ServiceMonitor, dashboard)
 monitoring/         kube-prometheus-stack values (Prometheus + Grafana)
@@ -200,7 +200,11 @@ cluster with a managed node group (2× `c7i-flex.large`, autoscaling 2–4) and 
 `metrics-server`. Finally, it creates an IAM role GitHub Actions can assume only from the `main` branch
 of this repository (or, where OIDC is blocked, a deploy user limited to `eks:DescribeCluster`). See [terraform/README.md](terraform/README.md).
 
-> **Cost:** EKS control plane + NAT gateway + 2 nodes ≈ US$0.25/hour. Run `terraform destroy` after the
+> **Instance type:** `c7i-flex.large` (2 vCPU, 4 GiB) because AWS *Free plan* accounts can only launch
+> free-tier-eligible types; `t3.medium` is rejected there.
+>
+> **Cost:** EKS control plane + NAT gateway + 2 nodes + the ingress load balancer ≈ US$0.40/hour
+> (billed against Free plan credits, if you have them). Run `terraform destroy` after the
 > evaluation, after first running `helm uninstall` (see section 9).
 
 ---

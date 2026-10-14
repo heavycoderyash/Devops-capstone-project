@@ -52,5 +52,7 @@ kubectl delete pvc --all -n medislot
 terraform destroy
 ```
 
-> Cost: EKS control plane (~$0.10/h) + NAT gateway (~$0.056/h + data) + 2× c7i-flex.large (~$0.09/h) in ap-southeast-2.
+> Cost (ap-southeast-2, approx.): EKS control plane $0.10/h + NAT gateway ~$0.06/h + 2× c7i-flex.large ~$0.20/h
+> + the ingress NLB ~$0.03/h ≈ **$0.40/h**. `c7i-flex.large` is used because Free plan accounts may only launch
+> free-tier-eligible instance types.
 > Destroy as soon as you have your screenshots.
