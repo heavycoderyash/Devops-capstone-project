@@ -1,0 +1,16 @@
+# EKS only. Newer EKS clusters ship without a default StorageClass, so the
+# PostgreSQL PVC would stay Pending. This gp3 class is provisioned by the
+# aws-ebs-csi-driver add-on that Terraform installs.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer   # create the volume in the AZ where the Pod lands
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
